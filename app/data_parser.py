@@ -1,21 +1,21 @@
 def extract_product_names(products: list[str]) -> list[str]:
-    names = []
+    names = set()
 
     for p in products:
         parts = p.split(":")
         if len(parts) > 4:
-            vendor = parts[3]
-            product = parts[4]
+            vendor = parts[3].replace("_", " ").strip()
+            product = parts[4].replace("_", " ").strip()
 
-            if vendor and vendor != "*":
-                names.append(vendor.replace("_", " "))
             if product and product != "*":
-                names.append(product.replace("_", " "))
-            if vendor and product and vendor != "*" and product != "*":
-                names.append(f"{vendor} {product}".replace("_", " "))
+                names.add(product)
 
-    return list(set(names))
+            if vendor and vendor != "*" and vendor != product:
+                names.add(vendor)
+                if product and product != "*":
+                    names.add(f"{vendor} {product}")
 
+    return sorted(names)
 
 def extract_nvd_info(item):
     cve = item["cve"]
@@ -62,7 +62,9 @@ def extract_nvd_info(item):
                 if criteria:
                     products.append(criteria)
 
-    references = [ref.get("url") for ref in cve.get("references", []) if ref.get("url")]
+    references = list(dict.fromkeys(
+        ref.get("url") for ref in cve.get("references", []) if ref.get("url")
+    ))
     product_names = extract_product_names(products)
 
     return {
