@@ -1,3 +1,22 @@
+def extract_product_names(products: list[str]) -> list[str]:
+    names = []
+
+    for p in products:
+        parts = p.split(":")
+        if len(parts) > 4:
+            vendor = parts[3]
+            product = parts[4]
+
+            if vendor and vendor != "*":
+                names.append(vendor.replace("_", " "))
+            if product and product != "*":
+                names.append(product.replace("_", " "))
+            if vendor and product and vendor != "*" and product != "*":
+                names.append(f"{vendor} {product}".replace("_", " "))
+
+    return list(set(names))
+
+
 def extract_nvd_info(item):
     cve = item["cve"]
 
@@ -44,6 +63,7 @@ def extract_nvd_info(item):
                     products.append(criteria)
 
     references = [ref.get("url") for ref in cve.get("references", []) if ref.get("url")]
+    product_names = extract_product_names(products)
 
     return {
         "id": cve_id,
@@ -55,5 +75,6 @@ def extract_nvd_info(item):
         "score": score,
         "weaknesses": weaknesses,
         "products": products,
+        "product_names": product_names,
         "references": references,
     }
