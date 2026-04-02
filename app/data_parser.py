@@ -1,3 +1,6 @@
+def deduplicate(seq):
+    return list(dict.fromkeys(seq))
+
 def extract_product_names(products: list[str]) -> list[str]:
     names = set()
 
@@ -66,6 +69,10 @@ def extract_nvd_info(item):
         ref.get("url") for ref in cve.get("references", []) if ref.get("url")
     ))
     product_names = extract_product_names(products)
+
+    products = deduplicate(products)
+    product_names = deduplicate(product_names)
+    references = deduplicate(references)
 
     return {
         "id": cve_id,

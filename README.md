@@ -1,56 +1,37 @@
-# CyberGraph
 ### Mapping Cybersecurity Threats, Vulnerabilities and Mitigations using NLP, Knowledge Graphs and LLMs
 
 ---
 
 ## Overview
 
-CyberGraph is a web service that enables users to explore cybersecurity vulnerabilities through natural language queries.
-
-The system combines three core technologies:
-
-- **NLP** — extracting structured information from user queries
-- **Knowledge Graphs** — representing vulnerabilities, software, and relationships as RDF triples
-- **LLMs** — query interpretation and explanation generation
-
-Unlike simple keyword-based systems, the service uses an LLM as a query interpreter and orchestrator, translating natural language into structured intents that guide data retrieval and reasoning.
+This is a web service for exploring cybersecurity vulnerabilities through natural language queries. 
+It combines LLM-based interpretation, a structured knowledge graph, and real-world NVD data into a unified pipeline.
 
 Users can:
-
-- Query vulnerabilities using natural language
-- Retrieve structured vulnerability data (CVE)
-- Explore relationships between vulnerabilities and affected software
-- Receive explanations and actionable advice grounded in real data
+- Query vulnerabilities by CVE, software, severity, or weakness type
+- Perform multi-constraint searches (e.g. *HIGH severity + CWE-190 + nats-server*)
+- Receive interpreted answers with natural language explanations
 
 ---
 
-## System Architecture
+## Architecture
 
-The system follows a modular pipeline:
+The system follows an LLM-centered pipeline:
 
 ```
-User Query (Natural Language)
-        ↓
-LLM Interpretation
-  · Extracts intent (lookup, severity search, mitigation)
-  · Identifies entities (CVE ID, software, severity)
-        ↓
-Service Layer
-  · Routes query to appropriate logic
-  · Combines structured retrieval and filtering
-        ↓
-Knowledge Graph (RDF)
-  · Stores relationships between vulnerabilities, products, and properties
-  · Enables graph-based queries via SPARQL
-        ↓
-LLM Explanation Layer
-  · Generates human-readable explanations and recommendations
+User Query
+    ↓
+LLM Query Interpretation
+    ↓
+SPARQL Query (Knowledge Graph)
+    ↓
+Structured Data Retrieval
+    ↓
+LLM Answer Generation
 ```
 
-This architecture ensures that:
-
-- The LLM is used for interpretation and generation
-- All factual data is grounded in NVD structured data and the knowledge graph
+This design pairs **symbolic reasoning** (Knowledge Graph) with **neural reasoning** (LLM) to support both precise 
+lookups and flexible natural language interaction.
 
 ---
 
@@ -59,67 +40,68 @@ This architecture ensures that:
 | Layer | Tools |
 |---|---|
 | Backend | Python, FastAPI |
-| NLP | Regex + LLM-based interpretation |
-| Knowledge Graph | RDFLib (RDF), SPARQL |
-| LLM | CampusAI API |
+| Data | NVD JSON feeds |
+| NLP / LLM | CampusAI API |
+| Knowledge Graph | RDFLib, SPARQL |
 | Infrastructure | Docker |
 
 ---
 
 ## Data
 
-### Source
+**Source:** NVD (National Vulnerability Database) JSON feeds
 
-- **NVD** — National Vulnerability Database JSON feeds
+Each vulnerability is parsed into:
 
-### Processing
-
-NVD data is parsed and transformed into structured objects and RDF triples. The knowledge graph is built dynamically at application startup using RDFLib.
-
-Example triples:
-
-```
-(CVE-2005-0012)  —hasSeverity→  "HIGH"
-(CVE-2005-0012)  —affects→      "dillo"
-(CVE-2005-0012)  —hasWeakness→  "CWE-190"
-```
+| Field | Example |
+|---|---|
+| CVE ID | CVE-2019-13126 |
+| Description | Integer overflow in NATS Server |
+| Severity & score | HIGH / 9.8 |
+| Weakness (CWE) | CWE-190 |
+| Affected products | nats-server |
+| References | NVD links |
 
 ---
 
-## NLP & LLM Pipeline
+## Knowledge Graph
 
-The system implements a hybrid NLP pipeline with four stages.
+Parsed data is stored as RDF triples:
 
-### 1. Query Interpretation (LLM)
-
-The LLM converts user queries into structured JSON:
-
-```json
-{
-  "intent": "mitigation_lookup",
-  "cve_id": "CVE-2019-13126",
-  "software": null,
-  "severity": null,
-  "wants_mitigation": true
-}
+```
+(CVE-2019-13126)  —affects→       (nats-server)
+(CVE-2019-13126)  —hasSeverity→   (HIGH)
+(CVE-2019-13126)  —hasWeakness→   (CWE-190)
 ```
 
-### 2. Entity Extraction
+This enables SPARQL queries with multi-constraint filtering and graph-based reasoning across the dataset.
 
-- CVE identifiers extracted via regex
-- Additional entities inferred by the LLM
+---
 
-### 3. Execution Layer
+## NLP Pipeline
 
-Based on the interpreted intent, the system:
+NLP is handled entirely through LLM-based query interpretation — no separate extraction pipeline.
 
-- Retrieves data from the indexed NVD dataset
-- Applies filters (severity, software)
-- Queries the knowledge graph when relevant
+The LLM identifies:
+- **Intent** — lookup, search, mitigation, comparison
+- **Entities** — CVE ID, software name, severity level, CWE
 
-### 4. Explanation & Advice (LLM)
+**Example:**
 
-The LLM generates structured explanations and defensive recommendations grounded in the retrieved data.
+Input:
+```json
+{ "question": "Show high severity vulnerabilities affecting nats-server with CWE-190" }
+```
+
+LLM output:
+```json
+{
+  "intent": "advanced_search",
+  "software": "nats-server",
+  "severity": "HIGH",
+  "weakness": "CWE-190"
+}
+```
 
 ---
 
@@ -130,19 +112,17 @@ The LLM generates structured explanations and defensive recommendations grounded
 ---
 
 ### `GET /vulnerabilities/{cve_id}`
-
-Returns structured information about a specific vulnerability.
+Returns structured data for a specific vulnerability.
 
 ---
 
 ### `POST /query`
-
-Natural language interface powered by LLM + structured retrieval.
+Main entry point for natural language interaction.
 
 **Request**
 ```json
 {
-  "question": "How to mitigate CVE-2019-13126?"
+  "question": "What are high severity vulnerabilities affecting nats-server with CWE-190?"
 }
 ```
 
@@ -150,50 +130,74 @@ Natural language interface powered by LLM + structured retrieval.
 ```json
 {
   "interpreted_query": {
-    "intent": "mitigation_lookup",
-    "cve_id": "CVE-2019-13126"
+    "intent": "advanced_search",
+    "software": "nats-server",
+    "severity": "HIGH",
+    "weakness": "CWE-190"
   },
-  "result": { "..." : "..." },
-  "explanation": "...",
-  "advice": "..."
+  "count": 2,
+  "results": [...],
+  "insight": "Two HIGH severity vulnerabilities affecting nats-server were found..."
 }
 ```
 
 ---
 
-### `POST /extract`
+## Query Capabilities
 
-Extracts structured entities from raw cybersecurity text.
+| Type | Description |
+|---|---|
+| CVE lookup | Retrieve a specific vulnerability by ID |
+| Severity search | Filter by severity level (LOW / MEDIUM / HIGH / CRITICAL) |
+| Software search | Find all vulnerabilities affecting a product |
+| Weakness search | Filter by CWE identifier |
+| Advanced search | Combine multiple constraints in a single query |
+
+---
+
+## Project Structure
+
+```
+app/
+├── main.py
+├── data_loader.py
+└── data_parser.py
+
+models/
+└── models.py
+
+services/
+├── vulnerability_service.py
+├── query_interpreter.py
+├── answer_generator.py
+└── campus_ai_api.py
+
+kg/
+├── graph_builder.py
+└── knowledge_graph_service.py
+
+data/
+└── NVD/
+```
 
 ---
 
 ## Testing
 
-| Type | Scope |
+| Method | Description |
 |---|---|
-| Unit tests | API endpoints |
-| NLP tests | Query interpretation and entity extraction |
-| KG tests | RDF graph and SPARQL queries |
-| Integration tests | End-to-end query pipeline |
+| Swagger UI | Interactive testing via `/docs` |
+| Manual API calls | Direct HTTP requests |
+| Unit tests | Per-component validation (optional) |
 
 ---
 
 ## Scope & Complexity
 
-The project integrates multiple components from the course:
+This project and covers:
 
-- NLP for information extraction and query understanding
-- Knowledge graphs (RDF + SPARQL)
-- Large language models for interpretation and generation
-- Web services (FastAPI)
-- Data engineering (NVD parsing)
-- System integration and orchestration
-
----
-
-## Key Design Choices
-
-- **LLM as orchestrator** — not a fallback, but the primary query interpreter
-- **Structured data as source of truth** — LLM never invents facts
-- **Hybrid pipeline** — LLM handles flexibility, deterministic logic handles correctness
-- **Separation of concerns** — service layer decouples routing from retrieval
+- LLM-based NLP pipeline (interpretation and answer generation)
+- Knowledge graph construction and SPARQL querying
+- REST API design with FastAPI
+- Multi-step reasoning across LLM and KG layers
+- Real-world cybersecurity data integration (NVD)

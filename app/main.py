@@ -33,18 +33,3 @@ def get_vulnerability(cve_id: str):
 @app.post("/api/v1/query")
 def query(request: QueryRequest):
     return vulnerability_service.handle_query(request.question)
-
-
-@app.post("/api/v1/extract")
-def extract(request: ExtractRequest):
-    interpreted = interpret_query(request.text)
-    found_cves = extract_cve(request.text)
-
-    return {
-        "entities": {
-            "cve": found_cves,
-            "software": interpreted.get("software"),
-            "severity": interpreted.get("severity"),
-        },
-        "interpreted_query": interpreted,
-    }
