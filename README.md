@@ -1,18 +1,56 @@
+# CyberGraph
 ### Mapping Cybersecurity Threats, Vulnerabilities and Mitigations using NLP, Knowledge Graphs and LLMs
 
 ---
 
 ## Overview
 
-This will be a web service that allows users to explore cybersecurity vulnerabilities through natural language queries. 
-It will combines three core technologies:
+CyberGraph is a web service that enables users to explore cybersecurity vulnerabilities through natural language queries.
 
-- **NLP** — entity extraction and information parsing from unstructured text
-- **Knowledge Graphs** — structured representation of CVE data and relationships
-- **LLMs** — natural language interaction and answer generation
+The system combines three core technologies:
 
-Users can query vulnerabilities by CVE identifier, discover relationships between vulnerabilities and affected software, 
-retrieve mitigation strategies, and ask freeform questions in natural language.
+- **NLP** — extracting structured information from user queries
+- **Knowledge Graphs** — representing vulnerabilities, software, and relationships as RDF triples
+- **LLMs** — query interpretation and explanation generation
+
+Unlike simple keyword-based systems, the service uses an LLM as a query interpreter and orchestrator, translating natural language into structured intents that guide data retrieval and reasoning.
+
+Users can:
+
+- Query vulnerabilities using natural language
+- Retrieve structured vulnerability data (CVE)
+- Explore relationships between vulnerabilities and affected software
+- Receive explanations and actionable advice grounded in real data
+
+---
+
+## System Architecture
+
+The system follows a modular pipeline:
+
+```
+User Query (Natural Language)
+        ↓
+LLM Interpretation
+  · Extracts intent (lookup, severity search, mitigation)
+  · Identifies entities (CVE ID, software, severity)
+        ↓
+Service Layer
+  · Routes query to appropriate logic
+  · Combines structured retrieval and filtering
+        ↓
+Knowledge Graph (RDF)
+  · Stores relationships between vulnerabilities, products, and properties
+  · Enables graph-based queries via SPARQL
+        ↓
+LLM Explanation Layer
+  · Generates human-readable explanations and recommendations
+```
+
+This architecture ensures that:
+
+- The LLM is used for interpretation and generation
+- All factual data is grounded in NVD structured data and the knowledge graph
 
 ---
 
@@ -21,7 +59,7 @@ retrieve mitigation strategies, and ask freeform questions in natural language.
 | Layer | Tools |
 |---|---|
 | Backend | Python, FastAPI |
-| NLP | spaCy or LLM-based entity recognition |
+| NLP | Regex + LLM-based interpretation |
 | Knowledge Graph | RDFLib (RDF), SPARQL |
 | LLM | CampusAI API |
 | Infrastructure | Docker |
@@ -30,25 +68,59 @@ retrieve mitigation strategies, and ask freeform questions in natural language.
 
 ## Data
 
-### Sources
+### Source
+
 - **NVD** — National Vulnerability Database JSON feeds
 
-### Knowledge Graph Structure
+### Processing
 
-Data is processed into RDF triples of the form `(subject, predicate, object)`:
+NVD data is parsed and transformed into structured objects and RDF triples. The knowledge graph is built dynamically at application startup using RDFLib.
+
+Example triples:
 
 ```
-(CVE-2021-44228)  —affects→       (Apache Log4j)
-(CVE-2021-44228)  —has_severity→  (Critical)
-(CVE-2021-44228)  —mitigated_by→  (Patch 2.15.0)
+(CVE-2005-0012)  —hasSeverity→  "HIGH"
+(CVE-2005-0012)  —affects→      "dillo"
+(CVE-2005-0012)  —hasWeakness→  "CWE-190"
 ```
+
 ---
 
-### NLP Structure
+## NLP & LLM Pipeline
 
-The NLP component will include:
-- Named Entity Recognition (NER) for identifying CVE identifiers, software names and severity levels
-- Rule-based or LLM-based information extraction for mapping text into structured triples
+The system implements a hybrid NLP pipeline with four stages.
+
+### 1. Query Interpretation (LLM)
+
+The LLM converts user queries into structured JSON:
+
+```json
+{
+  "intent": "mitigation_lookup",
+  "cve_id": "CVE-2019-13126",
+  "software": null,
+  "severity": null,
+  "wants_mitigation": true
+}
+```
+
+### 2. Entity Extraction
+
+- CVE identifiers extracted via regex
+- Additional entities inferred by the LLM
+
+### 3. Execution Layer
+
+Based on the interpreted intent, the system:
+
+- Retrieves data from the indexed NVD dataset
+- Applies filters (severity, software)
+- Queries the knowledge graph when relevant
+
+### 4. Explanation & Advice (LLM)
+
+The LLM generates structured explanations and defensive recommendations grounded in the retrieved data.
+
 ---
 
 ## API Reference
@@ -58,80 +130,40 @@ The NLP component will include:
 ---
 
 ### `GET /vulnerabilities/{cve_id}`
+
 Returns structured information about a specific vulnerability.
 
 ---
 
-### `GET /software/{name}/vulnerabilities`
-Returns all vulnerabilities affecting a given software.
-
----
-
-### `GET /attack-types/{type}/vulnerabilities`
-Returns vulnerabilities associated with a specific attack type.
-
----
-
 ### `POST /query`
-Natural language query interface. Interprets the question and retrieves relevant data from the knowledge graph.
+
+Natural language interface powered by LLM + structured retrieval.
 
 **Request**
 ```json
 {
-  "question": "What vulnerabilities affect Apache Log4j?"
+  "question": "How to mitigate CVE-2019-13126?"
 }
 ```
 
 **Response**
 ```json
 {
-  "results": ["CVE-2021-44228"],
-  "explanation": "Apache Log4j is affected by critical vulnerabilities including Log4Shell."
-}
-```
-
----
-
-### `POST /query` — mitigation lookup
-
-**Request**
-```json
-{
-  "question": "How to mitigate CVE-2021-44228?"
-}
-```
-
-**Response**
-```json
-{
-  "cve_id": "CVE-2021-44228",
-  "mitigation": "Upgrade to Log4j version 2.15.0 or later",
-  "severity": "Critical"
+  "interpreted_query": {
+    "intent": "mitigation_lookup",
+    "cve_id": "CVE-2019-13126"
+  },
+  "result": { "..." : "..." },
+  "explanation": "...",
+  "advice": "..."
 }
 ```
 
 ---
 
 ### `POST /extract`
-Extracts entities and structured information from raw cybersecurity text.
 
-**Request**
-```json
-{
-  "text": "CVE-2021-44228 is a critical vulnerability in Apache Log4j."
-}
-```
-
-**Response**
-```json
-{
-  "entities": {
-    "cve": ["CVE-2021-44228"],
-    "software": ["Apache Log4j"],
-    "severity": ["Critical"]
-  }
-}
-```
+Extracts structured entities from raw cybersecurity text.
 
 ---
 
@@ -140,19 +172,28 @@ Extracts entities and structured information from raw cybersecurity text.
 | Type | Scope |
 |---|---|
 | Unit tests | API endpoints |
-| NLP tests | Entity extraction accuracy |
-| KG tests | SPARQL query correctness |
-| Integration tests | End-to-end query flow |
+| NLP tests | Query interpretation and entity extraction |
+| KG tests | RDF graph and SPARQL queries |
+| Integration tests | End-to-end query pipeline |
 
 ---
 
 ## Scope & Complexity
 
-The project covers:
+The project integrates multiple components from the course:
 
-- NLP pipeline (extraction and entity recognition)
-- Knowledge graph construction and SPARQL querying
-- LLM integration with prompt engineering
-- REST API implementation with FastAPI
-- Docker containerization
-- Test suite
+- NLP for information extraction and query understanding
+- Knowledge graphs (RDF + SPARQL)
+- Large language models for interpretation and generation
+- Web services (FastAPI)
+- Data engineering (NVD parsing)
+- System integration and orchestration
+
+---
+
+## Key Design Choices
+
+- **LLM as orchestrator** — not a fallback, but the primary query interpreter
+- **Structured data as source of truth** — LLM never invents facts
+- **Hybrid pipeline** — LLM handles flexibility, deterministic logic handles correctness
+- **Separation of concerns** — service layer decouples routing from retrieval

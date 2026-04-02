@@ -5,7 +5,7 @@ from app.data_parser import extract_nvd_info
 from models.models import QueryRequest, ExtractRequest
 from nlp.entity_extraction import extract_cve
 from services.vulnerability_service import VulnerabilityService
-from services.knowledge_graph_service import KnowledgeGraphService
+from kg.knowledge_graph_service import KnowledgeGraphService
 from services.query_interpreter import interpret_query
 
 app = FastAPI(title="CyberGraph API")
