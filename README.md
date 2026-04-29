@@ -5,7 +5,8 @@
 ## Overview
 
 This is a web service for exploring cybersecurity vulnerabilities through natural language queries. 
-It combines LLM-based interpretation, a structured knowledge graph, and real-world NVD data into a unified pipeline.
+It combines LLM-based interpretation, a structured knowledge graph, and real-world National Vulnerabilieties Databse (NVD)
+data into a unified pipeline.
 
 Users can:
 - Query vulnerabilities by CVE, software, severity, or weakness type

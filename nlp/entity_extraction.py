@@ -1,5 +1,12 @@
 import re
 
 
-def extract_cve(text: str):
-    return re.findall(r"CVE-\d{4}-\d+", text)
+def extract_cve(text: str) -> list[str]:
+    """
+    Extract valid CVE identifiers according to MITRE format.
+
+    Format:
+    CVE-YYYY-NNNN... (4+ digits)
+    """
+    pattern = r"CVE-\d{4}-\d{4,7}"
+    return re.findall(pattern, text)

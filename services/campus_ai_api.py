@@ -66,7 +66,6 @@ def get_text_response(
         timeout=timeout,
     )
 
-    # gestione robusta formato risposta
     if "choices" in data:
         return data["choices"][0]["message"]["content"]
 

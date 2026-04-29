@@ -1,79 +1,126 @@
-def deduplicate(seq):
+from typing import List, Dict, Any
+
+
+def deduplicate(seq: List[Any]) -> List[Any]:
+    """
+    Remove duplicates while preserving order.
+    Uses dict insertion order (Python 3.7+).
+    """
     return list(dict.fromkeys(seq))
 
-def extract_product_names(products: list[str]) -> list[str]:
+
+def extract_product_names(products: List[str]) -> List[str]:
+    """
+    Extract human-readable product names from CPE strings.
+
+    Example CPE:
+    cpe:2.3:a:vendor:product:...
+
+    Returns:
+        Sorted list of:
+        - product names
+        - vendor names
+        - "vendor product" combinations
+    """
     names = set()
 
-    for p in products:
-        parts = p.split(":")
-        if len(parts) > 4:
-            vendor = parts[3].replace("_", " ").strip()
-            product = parts[4].replace("_", " ").strip()
+    for cpe in products:
+        parts = cpe.split(":")
+
+        # Ensure valid CPE format
+        if len(parts) <= 4:
+            continue
+
+        vendor = parts[3].replace("_", " ").strip()
+        product = parts[4].replace("_", " ").strip()
+
+        # Add product name
+        if product and product != "*":
+            names.add(product)
+
+        # Add vendor and combined name
+        if vendor and vendor != "*" and vendor != product:
+            names.add(vendor)
 
             if product and product != "*":
-                names.add(product)
-
-            if vendor and vendor != "*" and vendor != product:
-                names.add(vendor)
-                if product and product != "*":
-                    names.add(f"{vendor} {product}")
+                names.add(f"{vendor} {product}")
 
     return sorted(names)
 
-def extract_nvd_info(item):
-    cve = item["cve"]
 
+def extract_nvd_info(item: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize a raw NVD vulnerability entry into a unified internal schema.
+
+    This function:
+    - extracts relevant fields from NVD JSON
+    - handles multiple CVSS versions
+    - cleans and deduplicates data
+    - prepares the data for Knowledge Graph ingestion
+
+    Returns:
+        Dict with normalized vulnerability fields
+    """
+    cve = item.get("cve", {})
+
+    # --- Basic metadata ---
     cve_id = cve.get("id")
     published = cve.get("published")
     last_modified = cve.get("lastModified")
     status = cve.get("vulnStatus")
 
-    description = None
-    for d in cve.get("descriptions", []):
-        if d.get("lang") == "en":
-            description = d.get("value")
-            break
+    # --- Description (prefer English) ---
+    description = next(
+        (d.get("value") for d in cve.get("descriptions", []) if d.get("lang") == "en"),
+        None
+    )
 
+    # --- Severity & score (handle multiple CVSS versions) ---
     severity = None
     score = None
 
     metrics = cve.get("metrics", {})
-    if "cvssMetricV31" in metrics and metrics["cvssMetricV31"]:
-        metric = metrics["cvssMetricV31"][0]
-        severity = metric.get("cvssData", {}).get("baseSeverity") or metric.get("baseSeverity")
-        score = metric.get("cvssData", {}).get("baseScore")
-    elif "cvssMetricV30" in metrics and metrics["cvssMetricV30"]:
-        metric = metrics["cvssMetricV30"][0]
-        severity = metric.get("cvssData", {}).get("baseSeverity") or metric.get("baseSeverity")
-        score = metric.get("cvssData", {}).get("baseScore")
-    elif "cvssMetricV2" in metrics and metrics["cvssMetricV2"]:
-        metric = metrics["cvssMetricV2"][0]
-        severity = metric.get("baseSeverity")
-        score = metric.get("cvssData", {}).get("baseScore")
 
-    weaknesses = []
-    for w in cve.get("weaknesses", []):
-        for desc in w.get("description", []):
-            if desc.get("lang") == "en":
-                weaknesses.append(desc.get("value"))
+    for key in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
+        if key in metrics and metrics[key]:
+            metric = metrics[key][0]
 
-    products = []
-    for config in cve.get("configurations", []):
-        for node in config.get("nodes", []):
-            for match in node.get("cpeMatch", []):
-                criteria = match.get("criteria")
-                if criteria:
-                    products.append(criteria)
+            severity = (
+                metric.get("cvssData", {}).get("baseSeverity")
+                or metric.get("baseSeverity")
+            )
 
-    references = list(dict.fromkeys(
-        ref.get("url") for ref in cve.get("references", []) if ref.get("url")
-    ))
+            score = metric.get("cvssData", {}).get("baseScore")
+            break  # stop at first available version
+
+    # --- Weaknesses (CWE IDs) ---
+    weaknesses = [
+        desc.get("value")
+        for w in cve.get("weaknesses", [])
+        for desc in w.get("description", [])
+        if desc.get("lang") == "en"
+    ]
+
+    # --- Products (CPEs) ---
+    products = [
+        match.get("criteria")
+        for config in cve.get("configurations", [])
+        for node in config.get("nodes", [])
+        for match in node.get("cpeMatch", [])
+        if match.get("criteria")
+    ]
+
+    # --- References (URLs) ---
+    references = [
+        ref.get("url")
+        for ref in cve.get("references", [])
+        if ref.get("url")
+    ]
+
+    # --- Derived fields ---
     product_names = extract_product_names(products)
 
-    products = deduplicate(products)
-    product_names = deduplicate(product_names)
-    references = deduplicate(references)
-
+    # --- Deduplication ---
     return {
         "id": cve_id,
         "published": published,
@@ -82,8 +129,8 @@ def extract_nvd_info(item):
         "description": description,
         "severity": severity,
         "score": score,
-        "weaknesses": weaknesses,
-        "products": products,
-        "product_names": product_names,
-        "references": references,
+        "weaknesses": deduplicate(weaknesses),
+        "products": deduplicate(products),
+        "product_names": deduplicate(product_names),
+        "references": deduplicate(references),
     }
