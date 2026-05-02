@@ -50,16 +50,12 @@ def extract_product_names(products: List[str]) -> List[str]:
 
 def extract_nvd_info(item: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Normalize a raw NVD vulnerability entry into a unified internal schema.
+    used normalize a raw NVD vulnerability entry into a unified internal schema.
 
-    This function:
-    - extracts relevant fields from NVD JSON
-    - handles multiple CVSS versions
-    - cleans and deduplicates data
-    - prepares the data for Knowledge Graph ingestion
+    This function extracts relevant fields from NVD JSON, handles multiple CVSS versions
+    ,cleans and deduplicates data and prepares the data for kg ingestion
 
-    Returns:
-        Dict with normalized vulnerability fields
+    Returns a dict with normalized vulnerability fields
     """
     cve = item.get("cve", {})
 
@@ -71,7 +67,8 @@ def extract_nvd_info(item: Dict[str, Any]) -> Dict[str, Any]:
 
     # --- Description (prefer English) ---
     description = next(
-        (d.get("value") for d in cve.get("descriptions", []) if d.get("lang") == "en"),
+        (
+            d.get("value") for d in cve.get("descriptions", []) if d.get("lang") == "en"),
         None
     )
 

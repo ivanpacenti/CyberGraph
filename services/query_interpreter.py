@@ -31,19 +31,17 @@ def interpret_query(question: str) -> dict:
     """
     Uses an LLM (CampusAI) to interpret a natural language query
     into a structured JSON representation.
-
     The LLM is instructed to extract:
     - intent (type of query)
     - cve_id (if present)
     - software name (if present)
     - severity level (if present)
     - whether mitigation is requested
-
     This structured output is then used by the backend service layer
     to decide which retrieval logic to apply (lookup, filtering, etc.).
     """
 
-    # Prompt engineering: I constrain the model to return ONLY JSON
+    # model has to return only json
     # with a fixed schema to make parsing deterministic.
     prompt = f"""
     You are a cybersecurity query interpreter.
@@ -65,13 +63,13 @@ def interpret_query(question: str) -> dict:
     User question:
     {question}
     """
-    # Send request to CampusAI LLM
+    # Send request to LLM
     raw = get_text_response(prompt, temperature=0.0)
 
     # Clean possible markdown formatting from LLM output
     cleaned = clean_json_response(raw)
 
-    # Debug prints (useful during development to inspect model behavior)
+    # only for debug
     print("RAW:", raw)
     print("CLEANED:", cleaned)
 
@@ -81,11 +79,9 @@ def interpret_query(question: str) -> dict:
 
     except json.JSONDecodeError:
         """
-        If parsing fails, I return a safe fallback response.
-
+        If parsing fails, a safe fallback response is returned.
         This ensures the system does not crash and can still respond,
         even if the LLM output is malformed.
-
         The raw output is included for debugging and analysis.
         """
         return {

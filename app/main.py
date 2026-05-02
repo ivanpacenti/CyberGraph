@@ -14,7 +14,7 @@ app = FastAPI(
 )
 
 
-# Load external data sources
+# load external data sources
 raw_nvd_data = load_nvd()
 cwe_data = load_cwe()
 
