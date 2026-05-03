@@ -181,7 +181,7 @@ external knowledge.
 
 ### 3.3 Advanced Search
 
-For queries involving multiple constraints (e.g. software, severity, weakness), the system relies on the _knowledge graph_.
+For queries involving multiple constraints (e.g. software, severity, weakness), the system relies on the knowledge graph.
 
 Execution steps:
 
@@ -197,7 +197,7 @@ This approach allows flexible _multi-dimensional_ filtering without hardcoding q
 
 ### 3.4 Software Search
 
-When the query specifies only a software product, the system retrieves all vulnerabilities affecting that product via the _knowledge graph_.
+When the query specifies only a software product, the system retrieves all vulnerabilities affecting that product via the knowledge graph.
 
 Execution steps:
 
@@ -213,7 +213,7 @@ When only a severity level is specified, the system retrieves all vulnerabilitie
 
 Execution steps:
 
-1. Query the _knowledge graph_ for CVEs with the given severity  
+1. Query the knowledge graph for CVEs with the given severity  
 2. Aggregate results  
 3. Generate a concise summary  
 
@@ -376,15 +376,15 @@ Response example:
 
 ### Environment Variables
 
-The system uses an external LLM API (DTU CampusAI).  
-You must provide your API key using a `.env` file.
+The system currently uses CampusAI to access a Large Language Model.  
 
-Create a `.env` file in the root of the project:
+However, the design is modular and it is possible to switch to a different LLM provider by modifying the `campus_ai_api` module.
+
+To run the project, you must provide your API key using a `.env` file as shown below, in the root of the project:
 
 ```env
 CAMPUSAI_API_KEY=your_api_key_here
 CAMPUSAI_MODEL="Gemma 4"
-CAMPUSAI_API_URL="https://chat.campusai.compute.dtu.dk/api/v1/"
 ```
 
 
