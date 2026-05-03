@@ -45,7 +45,7 @@ def root() -> dict:
     return {"message": "CyberGraph API is running"}
 
 
-@app.get("/api/v1/vulnerabilities/{cve_id}")
+@app.get("/vulnerabilities/{cve_id}")
 def get_vulnerability(cve_id: str) -> dict:
     """
     Return structured information for a specific CVE.
@@ -61,7 +61,7 @@ def get_vulnerability(cve_id: str) -> dict:
     return cve
 
 
-@app.post("/api/v1/query")
+@app.post("/query")
 def query(request: QueryRequest) -> dict:
     """
     Natural language query endpoint.

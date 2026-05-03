@@ -1,44 +1,41 @@
-Description of the project
-System architecture (diagram optional)
-How to run (including Docker)
-API documentation (endpoints)
-Description of dataset
-Evaluation/results (quantitative and/or qualitative)
-
 ## Description of the Project
 
-CyberGraph is a web service that enables natural language querying of cybersecurity vulnerabilities by combining large 
+This is a web service that enables natural language querying of cybersecurity vulnerabilities by combining large 
 language models with a knowledge graph.
 The system integrates data from the National Vulnerability Database (NVD) and the Common Weakness Enumeration (CWE), 
-and transforms them into a structured RDF knowledge graph. This graph models relationships between vulnerabilities (CVEs), 
+and transforms them into a structured RDF knowledge graph that models relationships between vulnerabilities (CVEs), 
 software products, weaknesses (CWEs), and external references using a custom ontology.
 With the use of an API it is possible to submit queries in natual language, which is interpreted using an LLM, translated 
 into structured parameters, and executed as SPARQL queries over the knowledge graph. 
 The retrieved results are returned as structured data (including CVE identifiers, severity, affected products, and weaknesses), 
 and are further used to generate concise, grounded insights through the LLM. 
-The full data processing pipeline, RDF graph construction, semantic querying, and an API layer are all packaged 
-in a Docker container for portability.
+The full ssystem is packaged in a Docker container for portability.
 
 ## System Architecture
 
-CyberGraph follows a modular architecture that separates data ingestion, knowledge representation, query interpretation, and API exposure.
+This project is designed as a modular system, where each component is responsible for a specific part of the pipeline, 
+from data ingestion to query execution and response generation. 
+This separation makes the system easier to understand, extend, and debug.
 
-The system consists of the following main components:
+The architecture is organized into the following layers:
 
-- **Data Layer**: Loads and preprocesses vulnerability data from external sources (NVD and CWE).
-- **Parsing Layer**: Normalizes raw data into a consistent internal schema.
-- **Knowledge Graph Layer**: Builds an RDF graph using a custom ontology and enables querying via SPARQL.
-- **NLP / LLM Layer**: Interprets natural language queries into structured parameters and generates insights.
-- **Service Layer**: Orchestrates query execution and combines structured retrieval with LLM-based reasoning.
-- **API Layer**: Exposes functionality via a FastAPI web service.
+* Data Layer: This layer is responsible for loading vulnerability data from external sources, specifically the NVD and the CWE. It handles raw data ingestion and basic preprocessing.
+* Parsing Layer: The parsing step transforms the raw input data into a consistent internal format. Since NVD and CWE have different structures, this layer normalizes the data so it can be used uniformly across the system.
+* Knowledge Graph Layer: In this layer, the normalized data is converted into an RDF knowledge graph based on a custom ontology. It defines entities such as vulnerabilities, software products, and weaknesses, and enables querying through SPARQL.
+* NLP / LLM Layer: This component handles natural language understanding. It takes user queries and translates them into structured parameters (intent, software, severity, etc.). It is also used later to generate concise, human-readable insights from the retrieved data.
+* Service Layer: The service layer acts as the central coordinator of the system. Based on the interpreted query, it decides whether to perform a direct lookup or a knowledge graph query, and combines the retrieved data with LLM-based reasoning.
+* API Layer: The API layer exposes the system through a FastAPI web service. It provides endpoints for querying vulnerabilities and serves as the entry point for user interaction.
+
+![System Architecture](af.png "Architecture flowchat")
 
 ## Dataset
 
-The project uses two cybersecurity data sources.
+The project uses two cybersecurity data sources:
 
 ### National Vulnerability Database (NVD)
 
-NVD provides concrete vulnerability records identified by CVE IDs. Each CVE entry may include descriptions, CVSS severity metrics, affected products encoded as CPE strings, weakness identifiers, and external references.
+NVD provides concrete vulnerability records identified by CVE IDs. Each CVE entry may include descriptions, 
+CVSS severity metrics, affected products encoded as CPE strings, weakness identifiers, and external references.
 
 Example fields used from NVD:
 
@@ -53,7 +50,8 @@ The `configurations` field contains CPE matches, which are used to extract affec
 
 ### Common Weakness Enumeration (CWE)
 
-CWE provides a taxonomy of software and hardware weakness types. Unlike NVD, CWE does not describe individual vulnerabilities, but categories of weaknesses such as integer overflow, SQL injection, or cross-site scripting.
+CWE provides a classification of software and hardware weakness types. Unlike NVD, CWE does not describe individual 
+vulnerabilities, but categories of weaknesses such as integer overflow, SQL injection, or cross-site scripting.
 
 The project uses CWE fields such as:
 
@@ -86,12 +84,10 @@ The project uses CWE fields such as:
 | **Notes** | Additional notes or editorial comments |
 
 
-## Query Processing Pipeline
+# Query Processing Pipeline
 
-The system processes natural language queries through a multi-stage pipeline that combines a 
-Large Language Model (LLM) with a Knowledge Graph (KG).
 
-1. Natural Language Interpretation (LLM)
+## 1. Natural Language Interpretation (LLM)
 
 User queries are first interpreted using an LLM via a structured prompt:
 
@@ -116,48 +112,36 @@ User queries are first interpreted using an LLM via a structured prompt:
 
 The LLM extracts structured intent and entities from the user question.
 
-Example
+Example:
 
-{
-  "intent": "advanced_search",
-  "software": "nats-server",
-  "severity": "HIGH",
-  "weakness": "CWE-190"
-}
+    {
+      "intent": "advanced_search",
+      "software": "nats-server",
+      "severity": "HIGH",
+      "weakness": "CWE-190"
+    }
 
-⸻
 
-2. Parsing and Fallback
+
+## 2. Parsing and Fallback
 
 The LLM output is parsed into JSON.
 
 If parsing fails, the system returns a safe fallback:
 
-{
-  "intent": "unknown",
-  "cve_id": null,
-  "software": null,
-  "severity": null,
-  "weakness": null,
-  "wants_mitigation": false
-}
-
-This ensures robustness against malformed LLM responses.
-
-⸻
-
-3. Intent-Based Execution
-
-Based on the interpreted intent, different execution paths are triggered.
+    {
+      "intent": "unknown",
+      "cve_id": null,
+      "software": null,
+      "severity": null,
+      "weakness": null,
+      "wants_mitigation": false
+    }
 
 
-# CyberGraph Project
+## 3. Intent-Based Execution
 
-## 3. Query Execution Strategies
-
-After the query has been interpreted into a structured format, the system executes it using different strategies depending on the detected intent.
-
----
+Based on the interpreted intent, different execution paths are triggered:
 
 ### 3.1 CVE Lookup
 
@@ -165,7 +149,7 @@ When a specific CVE identifier is present, the system performs a direct lookup i
 
 In this case, the knowledge graph is not used, as the CVE ID already uniquely identifies the vulnerability.
 
-Execution steps:
+The execution steps:
 
 1. Retrieve the vulnerability from the dataset using the CVE ID  
 2. Generate a short technical explanation of the vulnerability  
@@ -184,36 +168,35 @@ Execution steps:
 1. Retrieve the vulnerability using the CVE ID  
 2. Extract relevant information from:
    - description  
-   - references (e.g. patches, advisories)  
+   - references (patches, advisories)  
    - version constraints  
 3. Generate a mitigation-oriented explanation using the LLM  
 
 It is important to note that the NVD dataset does not provide structured mitigation fields.  
-Therefore, mitigation insights are inferred only from explicit evidence present in the data, without introducing external knowledge.
+Therefore, mitigation insights are inferred only from explicit evidence present in the data, without introducing 
+external knowledge.
 
 ---
 
-### 3.3 Advanced Search (Knowledge Graph)
+### 3.3 Advanced Search
 
-For queries involving multiple constraints (e.g. software, severity, weakness), the system relies on the knowledge graph.
+For queries involving multiple constraints (e.g. software, severity, weakness), the system relies on the _knowledge graph_.
 
 Execution steps:
 
-1. Decompose the query into individual constraints  
-
-2. Execute graph-based queries for each constraint  
-
+1. Decompose the query into individual constraints
+2. Execute graph-based queries for each constraint
 3. Combine results using set intersection:
 
 CVE ∈ Software ∩ Severity ∩ Weakness  
 
-This approach allows flexible multi-dimensional filtering without hardcoding query logic.
+This approach allows flexible _multi-dimensional_ filtering without hardcoding query logic.
 
 ---
 
 ### 3.4 Software Search
 
-When the query specifies only a software product, the system retrieves all vulnerabilities affecting that product via the knowledge graph.
+When the query specifies only a software product, the system retrieves all vulnerabilities affecting that product via the _knowledge graph_.
 
 Execution steps:
 
@@ -225,11 +208,11 @@ Execution steps:
 
 ### 3.5 Severity Search
 
-When only a severity level is specified, the system retrieves all vulnerabilities matching that severity.
+When only a severity level is specified, the system retrieves all vulnerabilities matching that severity by using _knowledge graphs_.
 
 Execution steps:
 
-1. Query the knowledge graph for CVEs with the given severity  
+1. Query the _knowledge graph_ for CVEs with the given severity  
 2. Aggregate results  
 3. Generate a concise summary  
 
@@ -237,7 +220,7 @@ Execution steps:
 
 ### 3.6 Software + Severity Search
 
-For queries combining software and severity, the system performs a constrained graph search.
+For queries combining software and severity, the system performs a constrained _knowledge graph_ search.
 
 Execution steps:
 
@@ -258,50 +241,44 @@ If the query cannot be reliably interpreted, the system returns a safe fallback 
 This prevents system failure and ensures robustness against ambiguous or malformed queries.
 
 
-Step 3: SPARQL queries
+![Query Processing Pipeline](qp.png "Query pipeline")
 
-Example:
+## Knowledge Graph and Ontology
 
-SELECT ?cve WHERE {
-    ?cve a cg:Vulnerability ;
-         cg:affects ?product .
-    ?product rdfs:label ?label .
-    FILTER(CONTAINS(LCASE(STR(?label)), "nats-server"))
-}
+The project makes use of a knowledge graph to integrate and structure vulnerability data coming from heterogeneous sources. 
+As said before, the graph combines information from the National Vulnerability Database (NVD) and the Common Weakness 
+Enumeration (CWE).
 
-⸻
+The two datasets serve different but complementary purposes. NVD provides concrete vulnerability instances identified by 
+CVE IDs, including descriptions, severity scores, affected software products, and references. In contrast, CWE defines a 
+taxonomy of weakness types, such as integer overflows or injection flaws, which describe the underlying causes of 
+vulnerabilities rather than specific incidents.
 
-4. Knowledge Graph Role
+Instead of relying on a shared primary key, the integration is achieved through semantic relationships. 
+Each CVE entry in NVD is linked to one or more CWE identifiers via the hasWeakness relation. This allows the system to 
+connect individual vulnerabilities to their broader weakness categories, enriching the data with additional meaning.
 
-The Knowledge Graph integrates the Two different datasets,
-providing a unified view of vulnerabilities and software products:
-NVD provides vulnerability instances and contains affected product,
-while CWE provides vulnerability categories and weakness types.
+A custom ontology was defined to model the domain. The main classes include:
 
-The datasets are complementary:
+* Vulnerability (representing CVE entries)
+* SoftwareProduct (derived from CPE identifiers)
+* Weakness (representing CWE entries)
+* Reference (external resources such as advisories or patches)
 
-* NVD → “what is vulnerable” (software, CVEs)
-* CWE → “what type of problem it is” (weakness class)
+These classes are connected through object properties such as:
+
+* affects (linking a vulnerability to a software product)
+* hasWeakness (linking a vulnerability to a CWE category)
+* hasReference (linking a vulnerability to external resources)
+
+Additionally, datatype properties such as hasSeverity, hasScore, and description are used to attach literal values to vulnerabilities.
+
+The resulting knowledge graph enables multi-dimensional queries that go beyond simple filtering. 
+For example, it becomes possible to retrieve vulnerabilities affecting a given software product, constrained by severity 
+level and categorized by a specific type of weakness. This would be difficult to achieve with a purely tabular representation.
 
 
-
-So:
-👉 NVD does NOT provide “devices”
-👉 It provides affected products via CPE identifiers
-
-⸻
-
-5. Result Aggregation
-
-After retrieving matching CVEs:
-
-results = [self.get_vulnerability(cve_id) for cve_id in cve_ids][:20]
-
-The number of results is limited to avoid overload.
-
-⸻
-
-6. Answer Generation (LLM)
+## Answer Generation (LLM)
 
 A second LLM call generates a concise, grounded answer.
 
@@ -324,47 +301,154 @@ Focus on:
 - differences
 - fixes/workarounds
 
-⸻
 
-7. Final Response Structure
 
-The API returns both structured and generated output:
 
-{
-  "interpreted_query": {...},
-  "count": 2,
-  "results": [...],
-  "insight": "There are two high-severity vulnerabilities..."
-}
+## API Endpoints
 
-⸻
 
-🔥 Why this design is strong
+### 1. GET /
 
-This architecture combines:
+This endpoint acts as a simple health check to verify that the service is running correctly.
 
-* NLP → query understanding
-* Knowledge Graph → precise filtering
-* LLM → reasoning and summarization
+Response example:
 
-This hybrid approach avoids:
+    {
+      "message": "CyberGraph API is running"
+    }
 
-* pure keyword search limitations
-* pure LLM hallucinations
 
-⸻
 
-💡 Extra (very good for grading)
+### 2. GET /vulnerabilities/{cve_id}
 
-You can add this:
+This endpoint retrieves structured information for a specific vulnerability identified by its CVE ID.
 
-The system follows a retrieval-augmented generation paradigm, where the LLM is constrained by structured data retrieved from a knowledge graph, ensuring both precision and explainability.
+Example:
 
-⸻
+    GET /vulnerabilities/CVE-2019-13126
 
-Se vuoi nel prossimo step ti scrivo anche:
+Behavior:
 
-👉 Evaluation / Results (qualitative + quantitative)
-👉 oppure README completo finale pronto da consegnare
+* Looks up the CVE directly in the internal dataset
+* Returns all available structured fields (description, severity, products, etc.)
+* Returns a 404 error if the CVE is not found
 
-Così chiudi il progetto davvero a livello top.
+
+### 3. POST /query
+
+This is the main entry point of the system. It allows users to submit queries in natural language.
+
+Request body:
+
+    {
+      "question": "Show me high severity vulnerabilities affecting nats-server with CWE-190"
+    }
+
+Behavior:
+
+1. The query is interpreted by the LLM
+2. The intent and parameters are extracted
+3. The appropriate execution strategy is selected (lookup or knowledge graph query)
+4. Results are retrieved and combined with an LLM-generated insight
+
+Response example:
+
+    {
+      "interpreted_query": {
+        "intent": "advanced_search",
+        "software": "nats-server",
+        "severity": "HIGH",
+        "weakness": "CWE-190"
+      },
+      "count": 2,
+      "results": [...],
+      "insight": "There are two high-severity vulnerabilities affecting nats-server..."
+    }
+
+## How to Run
+
+
+
+### Environment Variables
+
+The system uses an external LLM API (DTU CampusAI).  
+You must provide your API key using a `.env` file.
+
+Create a `.env` file in the root of the project:
+
+```env
+CAMPUSAI_API_KEY=your_api_key_here
+CAMPUSAI_MODEL="Gemma 4"
+CAMPUSAI_API_URL="https://chat.campusai.compute.dtu.dk/api/v1/"
+```
+
+
+---
+
+## Run Locally
+
+1. Activate the virtual environment:
+
+```bash
+source .venv/bin/activate
+```
+
+2. Start the API server:
+
+```bash
+uvicorn app.main:app
+```
+
+3. Open in browser:
+
+- API root: http://127.0.0.1:8000  
+- Swagger docs: http://127.0.0.1:8000/docs  
+
+---
+
+### Run with Docker
+
+From the project root:
+
+### 1. Build the image
+
+```bash
+docker build -t cybergraph -f docker/Dockerfile .
+```
+
+### 2. Run the container
+
+```bash
+docker run --env-file .env -p 8000:8000 cybergraph
+```
+
+The API will be available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+---
+
+## Run Tests
+
+Install test dependencies (if not already installed):
+
+```bash
+pip install pytest
+```
+
+Run tests:
+
+```bash
+pytest
+```
+
+## Evaluation and Results
+
+The system was mainly evaluated through manual testing and by checking whether the different components behaved as expected.
+From a functional point of view, the API correctly handles different types of queries. Simple queries, such as retrieving a specific CVE, always return the expected result directly from the dataset. More complex queries, involving multiple constraints (e.g. software, severity, and weakness), were also tested and showed that the knowledge graph is working correctly, since the results match the intersection of the specified filters.
+The natural language interface works well for common query patterns. The LLM is generally able to correctly identify the intent and extract the relevant parameters. For example, queries like “high severity vulnerabilities affecting nats-server with CWE-190” are correctly interpreted and translated into structured filters. However, more ambiguous or poorly phrased queries may lead to an “unknown” intent, which is handled safely by the fallback mechanism.
+The generated insights are useful as a short summary of the results. Since the LLM is constrained to only use retrieved data, the answers remain consistent with the actual vulnerabilities and do not introduce incorrect information. The summaries typically highlight the number of results, shared characteristics, and relevant differences between vulnerabilities.
+From a robustness perspective, the system behaves well even when the LLM output is not valid JSON. In these cases, the fallback logic prevents crashes and returns a safe response. This makes the system more reliable when dealing with unpredictable model outputs.
+In terms of performance, the system handles a few thousand vulnerabilities without noticeable issues, as the graph is built in memory at startup. However, this approach would likely not scale to much larger datasets. For larger-scale use, a more efficient graph backend (such as QLever) would be preferable.
