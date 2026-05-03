@@ -98,6 +98,7 @@ User queries are first interpreted using an LLM via a structured prompt:
     Do not use code fences.
 
     Schema:
+
     {{
       "intent": "lookup_cve | mitigation_lookup | severity_search | software_search | software_severity_search | advanced_search | unknown",
       "cve_id": string or null,
@@ -113,14 +114,14 @@ User queries are first interpreted using an LLM via a structured prompt:
 The LLM extracts structured intent and entities from the user question.
 
 Example:
-
+```json
     {
       "intent": "advanced_search",
       "software": "nats-server",
       "severity": "HIGH",
       "weakness": "CWE-190"
     }
-
+```
 
 
 ## 2. Parsing and Fallback
@@ -128,7 +129,7 @@ Example:
 The LLM output is parsed into JSON.
 
 If parsing fails, the system returns a safe fallback:
-
+```json
     {
       "intent": "unknown",
       "cve_id": null,
@@ -137,7 +138,7 @@ If parsing fails, the system returns a safe fallback:
       "weakness": null,
       "wants_mitigation": false
     }
-
+```
 
 ## 3. Intent-Based Execution
 
@@ -233,10 +234,11 @@ Execution steps:
 ### 3.7 Fallback / Unknown Intent
 
 If the query cannot be reliably interpreted, the system returns a safe fallback response:
-
+```json
 {
   "intent": "unknown"
 }
+```
 
 This prevents system failure and ensures robustness against ambiguous or malformed queries.
 
@@ -280,26 +282,29 @@ level and categorized by a specific type of weakness. This would be difficult to
 
 ## Answer Generation (LLM)
 
-A second LLM call generates a concise, grounded answer.
+A second LLM call generates a concise and grounded answer.
+The key design choices are to use only retrieved data to avoid hallucination,
+compresses results into a small context and focuses on the most important aspects.
 
-Key design choices
+Prompt structure:
 
-* Uses only retrieved data (no hallucination)
-* Compresses results into a small context
-* Focuses on:
-    * number of vulnerabilities
-    * shared properties
-    * differences
-    * mitigation hints (if present)
-
-Prompt structure
-
-Answer the user's question using ONLY the retrieved results.
-Focus on:
-- number of vulnerabilities
-- shared patterns
-- differences
-- fixes/workarounds
+    You are a cybersecurity assistant.
+    Answer the user's question using ONLY the retrieved results below.
+    Do not invent facts.
+    Your answer must add value beyond simply repeating the raw results.
+    Focus on:
+    - the number of matching vulnerabilities
+      - the main shared properties
+      - important differences between the results
+      - any explicit fix, workaround, or exposure detail mentioned in the descriptions
+    User question:
+    {question}
+    Interpreted query:
+    {json.dumps(interpreted_query, ensure_ascii=False)}
+    Retrieved results:
+    {json.dumps(compact_results, ensure_ascii=False, indent=2)}
+    Write 2 to 4 short sentences in plain English.
+    Do not use markdown.
 
 
 
@@ -312,11 +317,11 @@ Focus on:
 This endpoint acts as a simple health check to verify that the service is running correctly.
 
 Response example:
-
+```json
     {
       "message": "CyberGraph API is running"
     }
-
+```
 
 
 ### 2. GET /vulnerabilities/{cve_id}
@@ -339,11 +344,11 @@ Behavior:
 This is the main entry point of the system. It allows users to submit queries in natural language.
 
 Request body:
-
+```json
     {
       "question": "Show me high severity vulnerabilities affecting nats-server with CWE-190"
     }
-
+```
 Behavior:
 
 1. The query is interpreted by the LLM
@@ -352,7 +357,7 @@ Behavior:
 4. Results are retrieved and combined with an LLM-generated insight
 
 Response example:
-
+```json
     {
       "interpreted_query": {
         "intent": "advanced_search",
@@ -364,7 +369,7 @@ Response example:
       "results": [...],
       "insight": "There are two high-severity vulnerabilities affecting nats-server..."
     }
-
+```
 ## How to Run
 
 
