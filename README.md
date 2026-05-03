@@ -283,9 +283,8 @@ level and categorized by a specific type of weakness. This would be difficult to
 ## Answer Generation (LLM)
 
 A second LLM call generates a concise and grounded answer.
-The key design choices are to use only retrieved data to avoid hallucination,
-compresses results into a small context and focuses on the most important aspects.
-
+The key design choices are the use of only retrieved data to avoid hallucination,
+to compresses results into a small context and to focuses on the most important aspects.
 Prompt structure:
 
     You are a cybersecurity assistant.
