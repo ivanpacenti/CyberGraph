@@ -38,12 +38,20 @@ CVSS severity metrics, affected products encoded as CPE strings, weakness identi
 
 Example fields used from NVD:
 
-- `id`
-- `descriptions`
-- `metrics`
-- `weaknesses`
-- `configurations`
-- `references`
+
+| Field                | Description                                                        |
+| -------------------- | ------------------------------------------------------------------ |
+| **id**               | Unique identifier of the vulnerability (CVE ID)                    |
+| **descriptions**     | Textual descriptions of the vulnerability in different languages   |
+| **metrics**          | CVSS metrics including severity, score, and attack characteristics |
+| **weaknesses**       | Associated CWE identifiers describing the type of weakness         |
+| **configurations**   | Affected systems expressed as CPE matches (products and versions)  |
+| **references**       | External links such as advisories, patches, or reports             |
+| **published**        | Date when the vulnerability was first published                    |
+| **lastModified**     | Date of the latest update to the vulnerability record              |
+| **vulnStatus**       | Current status of the vulnerability (e.g., Modified, Analyzed)     |
+| **cveTags**          | Optional tags associated with the CVE entry                        |
+| **sourceIdentifier** | Identifier of the organization that reported the vulnerability     |
 
 The `configurations` field contains CPE matches, which are used to extract affected software products.
 
@@ -56,8 +64,9 @@ The project uses CWE fields such as:
 
 #### CWE Dataset Fields
 
-| Field                             | Description                                                    |
-| --------------------------------- | -------------------------------------------------------------- |
+
+| Field                       | Description                                                    |
+| --------------------------- | -------------------------------------------------------------- |
 | **CWE-ID**                  | Unique numeric identifier for the weakness (e.g. CWE-79)       |
 | **Name**                    | Short descriptive name of the weakness                         |
 | **Weakness Abstraction**    | Granularity level: Pillar, Class, Base, or Variant             |
