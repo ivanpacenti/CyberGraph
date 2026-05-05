@@ -38,9 +38,8 @@ CVSS severity metrics, affected products encoded as CPE strings, weakness identi
 
 Example fields used from NVD:
 
-
-| Field                | Description                                                        |
-| -------------------- | ------------------------------------------------------------------ |
+| Field                      | Description                                                        |
+| -------------------------- | ------------------------------------------------------------------ |
 | **id**               | Unique identifier of the vulnerability (CVE ID)                    |
 | **descriptions**     | Textual descriptions of the vulnerability in different languages   |
 | **metrics**          | CVSS metrics including severity, score, and attack characteristics |
@@ -57,16 +56,14 @@ The `configurations` field contains CPE matches, which are used to extract affec
 
 ### Common Weakness Enumeration (CWE)
 
-CWE provides a classification of software and hardware weakness types. Unlike NVD, CWE does not describe individual
-vulnerabilities, but categories of weaknesses such as integer overflow, SQL injection, or cross-site scripting.
+CWE provides a classification of software and hardware weakness types. Unlike NVD, it does not describe individual vulnerabilities, but categories of weaknesses such as integer overflow, SQL injection, or cross-site scripting.
 
 The project uses CWE fields such as:
 
 #### CWE Dataset Fields
 
-
-| Field                       | Description                                                    |
-| --------------------------- | -------------------------------------------------------------- |
+| Field                             | Description                                                    |
+| --------------------------------- | -------------------------------------------------------------- |
 | **CWE-ID**                  | Unique numeric identifier for the weakness (e.g. CWE-79)       |
 | **Name**                    | Short descriptive name of the weakness                         |
 | **Weakness Abstraction**    | Granularity level: Pillar, Class, Base, or Variant             |
@@ -97,6 +94,7 @@ The project uses CWE fields such as:
 
 User queries are first interpreted using an LLM via a structured prompt:
 
+```json
 You are a cybersecurity query interpreter.
 
 Return ONLY valid JSON.
@@ -116,6 +114,8 @@ Schema:
 
 User question:
 {question}
+```
+
 The LLM extracts structured intent and entities from the user question.
 
 Example:
@@ -169,15 +169,11 @@ Mitigation queries are handled as a variation of CVE lookup, with a focus on rem
 Execution steps:
 
 1. Retrieve the vulnerability using the CVE ID
-2. Extract relevant information from:
-   - description
-   - references (patches, advisories)
-   - version constraints
+2. Extract relevant information from description, references (patches, advisories) and version constraints
 3. Generate a mitigation-oriented explanation using the LLM
 
 It is important to note that the NVD dataset does not provide structured mitigation fields.
-Therefore, mitigation insights are inferred only from explicit evidence present in the data, without introducing
-external knowledge.
+Therefore, mitigation insights are inferred only from explicit evidence present in the data, without introducing external knowledge.
 
 ---
 
@@ -189,9 +185,7 @@ Execution steps:
 
 1. Decompose the query into individual constraints
 2. Execute graph-based queries for each constraint
-3. Combine results using set intersection:
-
-CVE ∈ Software ∩ Severity ∩ Weakness
+3. Combine results using set intersection such as CVE ∈ Software ∩ Severity ∩ Weakness
 
 This approach allows flexible _multi-dimensional_ filtering without hardcoding query logic.
 
@@ -278,8 +272,7 @@ These classes are connected through object properties such as:
 Additionally, datatype properties such as hasSeverity, hasScore, and description are used to attach literal values to vulnerabilities.
 
 The resulting knowledge graph enables multi-dimensional queries that go beyond simple filtering.
-For example, it becomes possible to retrieve vulnerabilities affecting a given software product, constrained by severity
-level and categorized by a specific type of weakness. This would be difficult to achieve with a purely tabular representation.
+For example, it becomes possible to retrieve vulnerabilities affecting a given software product, constrained by severity level and categorized by a specific type of weakness. This would be difficult to achieve with a purely tabular representation.
 ![Knowledge Graph Example](kg_sample.svg "Knowledge Graph Example")
 
 ## Answer Generation (LLM)
@@ -287,8 +280,10 @@ level and categorized by a specific type of weakness. This would be difficult to
 A second LLM call generates a concise and grounded answer.
 The key design choices are the use of only retrieved data to avoid hallucination,
 to compresses results into a small context and to focuses on the most important aspects.
+
 Prompt structure:
 
+```json
 You are a cybersecurity assistant.
 Answer the user's question using ONLY the retrieved results below.
 Do not invent facts.
@@ -307,6 +302,7 @@ Focus on:
     {json.dumps(compact_results, ensure_ascii=False, indent=2)}
     Write 2 to 4 short sentences in plain English.
     Do not use markdown.
+```
 
 ## API Endpoints
 
@@ -322,13 +318,16 @@ Response example:
     }
 ```
 
-### 2. GET /vulnerabilities/
+### 2. GET /vulnerabilities/{cve-id}
 
 This endpoint retrieves structured information for a specific vulnerability identified by its CVE ID.
 
 Example:
 
+```bash
 GET /vulnerabilities/CVE-2019-13126
+```
+
 Behavior:
 
 * Looks up the CVE directly in the internal dataset
@@ -347,12 +346,7 @@ Request body:
     }
 ```
 
-Behavior:
-
-1. The query is interpreted by the LLM
-2. The intent and parameters are extracted
-3. The appropriate execution strategy is selected (lookup or knowledge graph query)
-4. Results are retrieved and combined with an LLM-generated insight
+The full query processing logic is described in the section [Query Processing Pipeline](#query-processing-pipeline)
 
 Response example:
 
