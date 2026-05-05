@@ -5,14 +5,14 @@ from app.main import app
 
 client = TestClient(app)
 
-
+## test the default endpoint
 def test_root_endpoint():
     response = client.get("/")
 
     assert response.status_code == 200
     assert response.json()["message"] == "CyberGraph API is running"
 
-
+## test the response in case of unknown cve
 def test_unknown_cve_returns_404():
     response = client.get("/api/v1/vulnerabilities/CVE-0000-0000")
 

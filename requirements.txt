@@ -7,3 +7,5 @@ openai
 pydantic
 rdflib
 pytest
+networkx
+matplotlib

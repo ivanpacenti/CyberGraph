@@ -10,8 +10,8 @@ class KnowledgeGraphService:
     Service layer for querying the RDF knowledge graph using SPARQL.
     """
 
-    def __init__(self, parsed_data: list[dict], cwe_data: dict | None = None):
-        self.graph: Graph = build_graph(parsed_data, cwe_data)
+    def __init__(self, nvd_data: list[dict], cwe_data: dict | None = None):
+        self.graph: Graph = build_graph(nvd_data, cwe_data)
 
     def get_vulnerabilities_by_product(self, product_name: str) -> list[str]:
         query = f"""
@@ -56,9 +56,7 @@ class KnowledgeGraphService:
         SELECT ?cve WHERE {{
             ?cve a cg:Vulnerability ;
                  cg:hasWeakness ?weakness .
-
             ?weakness rdfs:label ?label .
-
             FILTER(CONTAINS(LCASE(STR(?label)), LCASE("{weakness}")))
         }}
         """

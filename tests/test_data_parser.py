@@ -1,6 +1,6 @@
 from app.data_parser import extract_nvd_info
 
-
+##I created a fake cve, then I try to parse it
 def test_extract_nvd_info_parses_basic_nvd_entry():
     raw_item = {
         "cve": {

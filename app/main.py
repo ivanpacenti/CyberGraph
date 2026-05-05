@@ -26,7 +26,7 @@ parsed_vulnerabilities = [
 
 # Build the knowledge graph using both NVD and CWE data
 kg_service = KnowledgeGraphService(
-    parsed_data=parsed_vulnerabilities,
+    nvd_data=parsed_vulnerabilities,
     cwe_data=cwe_data,
 )
 

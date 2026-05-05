@@ -2,7 +2,7 @@ from services.knowledge_graph_service import KnowledgeGraphService
 
 
 def test_advanced_search_combines_product_severity_and_weakness():
-    parsed_data = [
+    nvd_data = [
         {
             "id": "CVE-2019-13126",
             "published": "2019-07-29T17:15:11.467",
@@ -39,8 +39,9 @@ def test_advanced_search_combines_product_severity_and_weakness():
         }
     }
 
-    kg_service = KnowledgeGraphService(parsed_data=parsed_data, cwe_data=cwe_data)
+    kg_service = KnowledgeGraphService(nvd_data=nvd_data, cwe_data=cwe_data)
 
+    ##I try to run an advanced search to test the constructed kg
     results = kg_service.advanced_search(
         software="nats-server",
         severity="HIGH",
@@ -51,7 +52,7 @@ def test_advanced_search_combines_product_severity_and_weakness():
 
 
 def test_weakness_can_be_found_by_cwe_name():
-    parsed_data = [
+    nvd_data = [
         {
             "id": "CVE-2019-13126",
             "description": "Integer overflow in NATS Server.",
@@ -72,7 +73,7 @@ def test_weakness_can_be_found_by_cwe_name():
         }
     }
 
-    kg_service = KnowledgeGraphService(parsed_data=parsed_data, cwe_data=cwe_data)
+    kg_service = KnowledgeGraphService(nvd_data=nvd_data, cwe_data=cwe_data)
 
     results = kg_service.get_vulnerabilities_by_weakness("Integer Overflow")
 
