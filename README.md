@@ -443,8 +443,15 @@ pytest
 ## Evaluation and Results
 
 The system was mainly evaluated through manual testing and by checking whether the different components behaved as expected.
-From a functional point of view, the API correctly handles different types of queries. Simple queries, such as retrieving a specific CVE, always return the expected result directly from the dataset. More complex queries, involving multiple constraints (e.g. software, severity, and weakness), were also tested and showed that the knowledge graph is working correctly, since the results match the intersection of the specified filters.
-The natural language interface works well for common query patterns. The LLM is generally able to correctly identify the intent and extract the relevant parameters. For example, queries like “high severity vulnerabilities affecting nats-server with CWE-190” are correctly interpreted and translated into structured filters. However, more ambiguous or poorly phrased queries may lead to an “unknown” intent, which is handled safely by the fallback mechanism.
+From a functional point of view, the API correctly handles different types of queries. 
+
+Simple queries, such as retrieving a specific CVE, always return the expected result directly from the dataset. 
+
+More complex queries, involving multiple constraints (e.g. software, severity, and weakness), were also tested and showed that the knowledge graph is working correctly, since the results match the intersection of the specified filters.
+
+The natural language interface works well for common query patterns: the LLM is generally able to correctly identify the intent and extract the relevant parameters. For example, queries like “high severity vulnerabilities affecting nats-server with CWE-190” are correctly interpreted and translated into structured filters. However, more ambiguous or poorly phrased queries may lead to an “unknown” intent, which is handled safely by the fallback mechanism.
+
+
 The generated insights are useful as a short summary of the results. Since the LLM is constrained to only use retrieved data, the answers remain consistent with the actual vulnerabilities and do not introduce incorrect information. The summaries typically highlight the number of results, shared characteristics, and relevant differences between vulnerabilities.
 From a robustness perspective, the system behaves well even when the LLM output is not valid JSON. In these cases, the fallback logic prevents crashes and returns a safe response. This makes the system more reliable when dealing with unpredictable model outputs.
 In terms of performance, the system handles a few thousand vulnerabilities without noticeable issues, as the graph is built in memory at startup. However, this approach would likely not scale to much larger datasets. For larger-scale use, a more efficient graph backend (such as QLever) would be preferable.
