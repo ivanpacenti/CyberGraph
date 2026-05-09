@@ -57,7 +57,9 @@ The `configurations` field contains CPE matches, which are used to extract affec
 
 ### Common Weakness Enumeration (CWE)
 
-CWE provides a classification of software and hardware weakness types. Unlike NVD, it does not describe individual vulnerabilities, but categories of weaknesses such as integer overflow, SQL injection, or cross-site scripting.
+CWE provides a classification of software and hardware weakness types. 
+Unlike NVD, it does not describe individual vulnerabilities, but categories of weaknesses such as integer overflow, 
+SQL injection, or cross-site scripting.
 
 The project uses CWE fields such as:
 
@@ -243,6 +245,35 @@ This prevents system failure and ensures robustness against ambiguous or malform
 
 ![Query Processing Pipeline](qp.png "Query pipeline")
 
+## Answer Generation (LLM)
+
+A second LLM call generates a concise and grounded answer.
+The key design choices are the use of only retrieved data to avoid hallucination,
+to compresses results into a small context and to focuses on the most important aspects.
+
+Prompt structure:
+
+```json
+You are a cybersecurity assistant.
+Answer the user's question using ONLY the retrieved results below.
+Do not invent facts.
+Your answer must add value beyond simply repeating the raw results.
+Focus on:
+
+- the number of matching vulnerabilities
+  - the main shared properties
+  - important differences between the results
+  - any explicit fix, workaround, or exposure detail mentioned in the descriptions
+    User question:
+    {question}
+    Interpreted query:
+    {json.dumps(interpreted_query, ensure_ascii=False)}
+    Retrieved results:
+    {json.dumps(compact_results, ensure_ascii=False, indent=2)}
+    Write 2 to 4 short sentences in plain English.
+    Do not use markdown.
+```
+
 ## Knowledge Graph and Ontology
 
 The project makes use of a knowledge graph to integrate and structure vulnerability data coming from different sources.
@@ -274,37 +305,11 @@ These classes are connected through object properties such as:
 Additionally, datatype properties such as hasSeverity, hasScore, and description are used to attach literal values to vulnerabilities.
 
 The resulting knowledge graph enables multi-dimensional queries that go beyond simple filtering.
-For example, it becomes possible to retrieve vulnerabilities affecting a given software product, constrained by severity level and categorized by a specific type of weakness. This would be difficult to achieve with a purely tabular representation.
+For example, it becomes possible to retrieve vulnerabilities affecting a given software product, constrained by severity 
+level and categorized by a specific type of weakness. This would be difficult to achieve with a purely tabular representation.
 ![Knowledge Graph Example](kg_sample.svg "Knowledge Graph Example")
 
-## Answer Generation (LLM)
 
-A second LLM call generates a concise and grounded answer.
-The key design choices are the use of only retrieved data to avoid hallucination,
-to compresses results into a small context and to focuses on the most important aspects.
-
-Prompt structure:
-
-```json
-You are a cybersecurity assistant.
-Answer the user's question using ONLY the retrieved results below.
-Do not invent facts.
-Your answer must add value beyond simply repeating the raw results.
-Focus on:
-
-- the number of matching vulnerabilities
-  - the main shared properties
-  - important differences between the results
-  - any explicit fix, workaround, or exposure detail mentioned in the descriptions
-    User question:
-    {question}
-    Interpreted query:
-    {json.dumps(interpreted_query, ensure_ascii=False)}
-    Retrieved results:
-    {json.dumps(compact_results, ensure_ascii=False, indent=2)}
-    Write 2 to 4 short sentences in plain English.
-    Do not use markdown.
-```
 
 ## API Endpoints
 
@@ -320,7 +325,7 @@ Response example:
     }
 ```
 
-### 2. GET /vulnerabilities/ {cve-id}
+### 2. GET /vulnerabilities/{cve-id}
 
 This endpoint retrieves structured information for a specific vulnerability identified by its CVE ID.
 
@@ -458,10 +463,4 @@ intent and extract the relevant parameters. For example, queries like “high se
 
 The generated insights are useful as a short summary of the results. Since the LLM is constrained to only use retrieved data, the answers remain consistent with the actual vulnerabilities and do not introduce incorrect information. The summaries typically highlight the number of results, shared characteristics, and relevant differences between vulnerabilities.
 From a robustness perspective, the system behaves well even when the LLM output is not valid JSON. In these cases, the fallback logic prevents crashes and returns a safe response. This makes the system more reliable when dealing with unpredictable model outputs.
-In terms of performance, the system handles a few thousand vulnerabilities without noticeable issues, as the graph is built in memory at startup. However, this approach would likely not scale to much larger datasets. For larger-scale use, a more efficient graph backend (such as QLever) would be preferable.
-
-Make sure that the \`.env\` file is located in the root directory of the project.
-
-I initially encountered several issues when copying the \`.env\` file after the container had already been created. The problem was solved by creating a proper \`docker-compose.yml\` configuration file and delegating the environment management to Docker Compose.
-
-After building and starting the container, the API will be available at:
+In terms of performance, the system handles a few thousand vulnerabilities without noticeable issues, as the graph is built in memory at startup. However, this approach would likely not scale to much larger datasets. For larger-scale use, a more efficient graph backend (such as **QLever**) would be preferable.
