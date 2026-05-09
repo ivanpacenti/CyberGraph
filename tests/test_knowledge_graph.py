@@ -77,4 +77,6 @@ def test_weakness_can_be_found_by_cwe_name():
 
     results = kg_service.get_vulnerabilities_by_weakness("Integer Overflow")
 
+    print(f"Debug: results = {results}")  # Temporary debug print
+
     assert results == ["CVE-2019-13126"]
