@@ -26,11 +26,10 @@ def _get_client() -> OpenAI:
 
 def get_text_response(
     prompt: str,
-    model: str | None = None,
     temperature: float = 0.0,
     timeout: int = 30,
 ) -> str:
-    model = model or os.getenv("CAMPUSAI_MODEL")
+    model = os.getenv("CAMPUSAI_MODEL")
     if not model:
         raise RuntimeError("Missing CAMPUSAI_MODEL in environment")
 
