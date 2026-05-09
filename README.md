@@ -38,8 +38,9 @@ CVSS severity metrics, affected products encoded as CPE strings, weakness identi
 
 Example fields used from NVD:
 
-| Field                      | Description                                                        |
-| -------------------------- | ------------------------------------------------------------------ |
+
+| Field                | Description                                                        |
+| -------------------- | ------------------------------------------------------------------ |
 | **id**               | Unique identifier of the vulnerability (CVE ID)                    |
 | **descriptions**     | Textual descriptions of the vulnerability in different languages   |
 | **metrics**          | CVSS metrics including severity, score, and attack characteristics |
@@ -62,8 +63,9 @@ The project uses CWE fields such as:
 
 #### CWE Dataset Fields
 
-| Field                             | Description                                                    |
-| --------------------------------- | -------------------------------------------------------------- |
+
+| Field                       | Description                                                    |
+| --------------------------- | -------------------------------------------------------------- |
 | **CWE-ID**                  | Unique numeric identifier for the weakness (e.g. CWE-79)       |
 | **Name**                    | Short descriptive name of the weakness                         |
 | **Weakness Abstraction**    | Granularity level: Pillar, Class, Base, or Variant             |
@@ -413,7 +415,13 @@ From the project root:
 sudo docker-compose up --build
 ```
 
-The API will be available at:
+Make sure that the \`.env\` file is located in the root directory of the project.
+
+I initially encountered several issues when copying the \`.env\` file after the container had already been created.
+
+The problem was solved by creating a proper \`docker-compose.yml\` configuration file and delegating the environment management to Docker Compose.
+
+After building and starting the container, the API will be available at:
 
 ```text
 http://127.0.0.1:8000
@@ -452,3 +460,8 @@ The generated insights are useful as a short summary of the results. Since the L
 From a robustness perspective, the system behaves well even when the LLM output is not valid JSON. In these cases, the fallback logic prevents crashes and returns a safe response. This makes the system more reliable when dealing with unpredictable model outputs.
 In terms of performance, the system handles a few thousand vulnerabilities without noticeable issues, as the graph is built in memory at startup. However, this approach would likely not scale to much larger datasets. For larger-scale use, a more efficient graph backend (such as QLever) would be preferable.
 
+Make sure that the \`.env\` file is located in the root directory of the project.
+
+I initially encountered several issues when copying the \`.env\` file after the container had already been created. The problem was solved by creating a proper \`docker-compose.yml\` configuration file and delegating the environment management to Docker Compose.
+
+After building and starting the container, the API will be available at:
