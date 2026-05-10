@@ -58,7 +58,7 @@ Retrieved results:
 
 Instructions:
 - Write 2 to 4 concise sentences.
-- Use plain English.
+- Use the same language as the question.
 - Do not use markdown.
 - Do not output JSON.
 """

@@ -103,17 +103,58 @@ You are a cybersecurity query interpreter.
 
 Return ONLY valid JSON.
 Do not use markdown.
+Do not explain anything.
 Do not use code fences.
 
-Schema:
+Allowed intents:
+- lookup_cve
+- mitigation_lookup
+- severity_search
+- software_search
+- weakness_search
+- vendor_search
+- advanced_search
+- unknown
 
+JSON schema:
 {{
-"intent": "lookup_cve | mitigation_lookup | severity_search | software_search | software_severity_search | advanced_search | unknown",
-"cve_id": string or null,
-"software": string or null,
-"severity": "CRITICAL | HIGH | MEDIUM | LOW" or null,
-"weakness": string or null,
-"wants_mitigation": boolean
+  "intent": string,
+  "cve_id": string or null,
+  "software": string or null,
+  "vendor": string or null,
+  "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | null,
+  "weakness": string or null,
+  "wants_mitigation": boolean
+}}
+
+Examples:
+
+Question:
+"Which critical vulnerabilities affect Apache products?"
+
+Output:
+{{
+  "intent": "advanced_search",
+  "cve_id": null,
+  "software": "Apache",
+  "vendor": null,
+  "severity": "CRITICAL",
+  "weakness": null,
+  "wants_mitigation": false
+}}
+
+Question:
+"Find SQL injection vulnerabilities"
+
+Output:
+{{
+  "intent": "weakness_search",
+  "cve_id": null,
+  "software": null,
+  "vendor": null,
+  "severity": null,
+  "weakness": "SQL injection",
+  "wants_mitigation": false
 }}
 
 User question:
@@ -127,9 +168,12 @@ Example:
 ```json
 {
       "intent": "advanced_search",
-      "software": "nats-server",
+      "cve_id": "CVE-2019-13126",
+      "software": "Apache HTTP Server",
+      "vendor": "Apache",
       "severity": "HIGH",
-      "weakness": "CWE-190"
+      "weakness": "CWE-79",
+      "wants_mitigation": true
     }
 ```
 
@@ -140,13 +184,15 @@ The LLM output is parsed into JSON.
 If parsing fails, the system returns a safe fallback:
 
 ```json
-{
-      "intent": "unknown",
-      "cve_id": null,
-      "software": null,
-      "severity": null,
-      "weakness": null,
-      "wants_mitigation": false
+     {
+    "intent": "unknown",
+    "cve_id": None,
+    "software": None,
+    "vendor": None,
+    "severity": None,
+    "weakness": None,
+    "wants_mitigation": False,
+    "raw_output": raw,
     }
 ```
 
@@ -158,13 +204,15 @@ Based on the interpreted intent, different execution paths are triggered:
 
 When a specific CVE identifier is present, the system performs a direct lookup in the internal dataset.
 
-In this case, the knowledge graph is not used, as the CVE ID already uniquely identifies the vulnerability.
+In this case, the knowledge graph is not required, since the CVE identifier already uniquely identifies the vulnerability.
 
-The execution steps:
+Execution steps:
 
 1. Retrieve the vulnerability from the dataset using the CVE ID
 2. Generate a short technical explanation of the vulnerability
 3. Produce a concise natural language answer using the LLM
+
+
 
 ### 3.2 Mitigation Lookup
 
@@ -173,65 +221,87 @@ Mitigation queries are handled as a variation of CVE lookup, with a focus on rem
 Execution steps:
 
 1. Retrieve the vulnerability using the CVE ID
-2. Extract relevant information from description, references (patches, advisories) and version constraints
+2. Extract relevant information from descriptions and references
 3. Generate a mitigation-oriented explanation using the LLM
 
 It is important to note that the NVD dataset does not provide structured mitigation fields.
-Therefore, mitigation insights are inferred only from explicit evidence present in the data, without introducing external knowledge.
+Therefore, mitigation insights are inferred only from explicit evidence present in the retrieved data.
 
----
 
-### 3.3 Advanced Search
 
-For queries involving multiple constraints (e.g. software, severity, weakness), the system relies on the knowledge graph.
+### 3.3 Software Search
 
-Execution steps:
-
-1. Decompose the query into individual constraints
-2. Execute graph-based queries for each constraint
-3. Combine results using set intersection such as CVE ∈ Software ∩ Severity ∩ Weakness
-
-This approach allows flexible _multi-dimensional_ filtering without hardcoding query logic.
-
----
-
-### 3.4 Software Search
-
-When the query specifies only a software product, the system retrieves all vulnerabilities affecting that product via the knowledge graph.
+When the query specifies a software product, the system retrieves vulnerabilities affecting that product through the knowledge graph.
 
 Execution steps:
 
-1. Match product names using SPARQL
-2. Retrieve associated CVEs
-3. Generate a summarized answer
+1. Match software products using SPARQL queries
+2. Retrieve associated vulnerabilities
+3. Generate a summarized natural language answer
 
----
+
+
+### 3.4 Vendor Search
+
+The system also supports graph-based retrieval using software vendors.
+
+Execution steps:
+
+1. Match vendor entities in the knowledge graph
+2. Traverse relationships between vendors, products, and vulnerabilities
+3. Return matching CVEs and generate a concise summary
+
+This demonstrates multi-hop traversal capabilities of the knowledge graph.
+
+
 
 ### 3.5 Severity Search
 
-When only a severity level is specified, the system retrieves all vulnerabilities matching that severity by using knowledge graphs.
+When a severity level is specified, the system retrieves vulnerabilities associated with that severity category.
 
 Execution steps:
 
-1. Query the knowledge graph for CVEs with the given severity
-2. Aggregate results
+1. Query the knowledge graph for vulnerabilities linked to the requested severity entity
+2. Aggregate matching results
 3. Generate a concise summary
 
----
 
-### 3.6 Software + Severity Search
 
-For queries combining software and severity, the system performs a constrained _knowledge graph_ search.
+### 3.6 Weakness Search
+
+Weakness-based queries use CWE entities stored in the knowledge graph.
 
 Execution steps:
 
-1. Retrieve CVEs affecting the specified software
-2. Filter by severity
-3. Return intersected results
+1. Match weakness identifiers or weakness names
+2. Retrieve vulnerabilities connected through the hasWeakness relation
+3. Generate a summarized answer
 
----
+This allows semantic searches such as “SQL injection vulnerabilities” or “CWE-79 vulnerabilities”.
 
-### 3.7 Fallback / Unknown Intent
+
+
+### 3.7 Advanced Search
+
+For queries involving multiple constraints (e.g. software, vendor, severity, or weakness), the system relies on the knowledge graph.
+
+Execution steps:
+
+1. Decompose the query into structured constraints
+2. Execute graph-based queries for each constraint
+3. Combine the result sets using set intersection
+
+Example:
+
+```text
+CVE ∈ Software ∩ Vendor ∩ Severity ∩ Weakness
+```
+
+This approach enables flexible multi-dimensional filtering without hardcoding query logic.
+
+
+
+### 3.8 Fallback / Unknown Intent
 
 If the query cannot be reliably interpreted, the system returns a safe fallback response:
 
@@ -241,9 +311,8 @@ If the query cannot be reliably interpreted, the system returns a safe fallback 
 }
 ```
 
-This prevents system failure and ensures robustness against ambiguous or malformed queries.
+This prevents system failures and ensures robustness against ambiguous or malformed queries.
 
-![Query Processing Pipeline](qp.png "Query pipeline")
 
 ## Answer Generation (LLM)
 
@@ -255,58 +324,86 @@ Prompt structure:
 
 ```json
 You are a cybersecurity assistant.
-Answer the user's question using ONLY the retrieved results below.
-Do not invent facts.
-Your answer must add value beyond simply repeating the raw results.
-Focus on:
 
-- the number of matching vulnerabilities
-  - the main shared properties
-  - important differences between the results
-  - any explicit fix, workaround, or exposure detail mentioned in the descriptions
-    User question:
-    {question}
-    Interpreted query:
-    {json.dumps(interpreted_query, ensure_ascii=False)}
-    Retrieved results:
-    {json.dumps(compact_results, ensure_ascii=False, indent=2)}
-    Write 2 to 4 short sentences in plain English.
-    Do not use markdown.
+Answer the user's question using ONLY the retrieved results below.
+
+Do not invent facts.
+Do not mention information that is not present in the retrieved results.
+
+Your answer should summarize:
+- how many vulnerabilities matched
+- the main shared characteristics
+- notable severity levels
+- affected products or vendors
+- recurring weakness patterns
+- any explicit mitigation or exposure details mentioned
+
+User question:
+{question}
+
+Interpreted query:
+{json.dumps(interpreted_query, ensure_ascii=False)}
+
+Retrieved results:
+{json.dumps(compact_results, ensure_ascii=False, indent=2)}
+
+Instructions:
+- Write 2 to 4 concise sentences.
+- Use the same language as the question.
+- Do not use markdown.
+- Do not output JSON.
 ```
 
 ## Knowledge Graph and Ontology
 
 The project makes use of a knowledge graph to integrate and structure vulnerability data coming from different sources.
-As said before, the graph combines information from the National Vulnerability Database (NVD) and the Common Weakness
-Enumeration (CWE).
-
-The two datasets serve different but complementary purposes. NVD provides *concrete vulnerability instances* identified by
-CVE IDs, including descriptions, severity scores, affected software products, and references. In contrast, CWE defines a
-*classification of weakness types*, such as integer overflows or injection flaws, which describe the underlying causes of
-vulnerabilities rather than specific incidents.
-
+As described previously, the graph combines information from the National Vulnerability Database (NVD) and the Common 
+Weakness Enumeration (CWE).
+The two datasets serve different but complementary purposes.
+NVD provides *concrete vulnerability instances* identified by CVE IDs, including descriptions, severity scores, 
+affected software products, vendors, and external references, while CWE defines a *classification of weakness types*, 
+such as integer overflows, SQL injections, or cross-site scripting vulnerabilities. 
+Rather than describing individual incidents, CWE models the underlying software weaknesses that can lead to vulnerabilities.
 Instead of relying on a shared primary key, the integration is achieved through semantic relationships.
-Each CVE entry in NVD is linked to one or more CWE identifiers via the hasWeakness relation. This allows the system to
-connect individual vulnerabilities to their broader weakness categories, enriching the data with additional meaning.
+Each CVE entry in NVD is linked to one or more CWE identifiers through the `hasWeakness` relation.
+This allows the system to connect individual vulnerabilities with broader weakness categories and enrich the 
+vulnerability data with additional semantic information.
+A custom lightweight ontology was defined to model the cybersecurity domain.
+The ontology is intentionally simple and focused on the project requirements, while still enabling graph-based retrieval 
+and semantic querying.
 
-A custom ontology was defined to model the domain. The main classes include:
+The main classes include:
 
-* Vulnerability (representing CVE entries)
-* SoftwareProduct (derived from CPE identifiers)
-* Weakness (representing CWE entries)
-* Reference (external resources such as advisories or patches)
+* `Vulnerability`, representing CVE entries from NVD
+* `SoftwareProduct`, derived from CPE information in NVD
+* `Vendor`, representing software vendors when available
+* `Weakness`, representing CWE entries
+* `Reference`, representing advisories, patches, or external reports
+* `SeverityLevel`, representing severity categories such as HIGH or CRITICAL
 
-These classes are connected through object properties such as:
+These entities are connected through object properties such as:
 
-* affects (linking a vulnerability to a software product)
-* hasWeakness (linking a vulnerability to a CWE category)
-* hasReference (linking a vulnerability to external resources)
+* `affects`, linking a vulnerability to an affected software product
+* `hasVendor`, linking a software product to its vendor
+* `hasWeakness`, linking a vulnerability to a CWE category
+* `hasReference`, linking a vulnerability to external resources
+* `hasSeverityLevel`, linking a vulnerability to a severity entity
 
-Additionally, datatype properties such as hasSeverity, hasScore, and description are used to attach literal values to vulnerabilities.
+The ontology also defines datatype properties used to attach literal metadata to entities, including:
 
-The resulting knowledge graph enables multi-dimensional queries that go beyond simple filtering.
-For example, it becomes possible to retrieve vulnerabilities affecting a given software product, constrained by severity 
-level and categorized by a specific type of weakness. This would be difficult to achieve with a purely tabular representation.
+* `cveId`
+* `cweId`
+* `productName`
+* `vendorName`
+* `hasScore`
+* `description`
+* `weaknessDescription`
+* `publishedAt`
+* `lastModifiedAt`
+
+Severity is represented as a graph entity instead of a plain literal value, for allowing vulnerabilities to be connected 
+semantically to shared severity categories in the graph.
+
 ![Knowledge Graph Example](kg_sample.svg "Knowledge Graph Example")
 
 
@@ -361,9 +458,12 @@ Response example:
 {
       "interpreted_query": {
         "intent": "advanced_search",
+        "cve_id": null,
         "software": "nats-server",
+        "vendor": null,
         "severity": "HIGH",
-        "weakness": "CWE-190"
+        "weakness": "CWE-190",
+        "wants_mitigation": false
       },
       "count": 2,
       "results": [...],
@@ -459,8 +559,17 @@ More complex queries, involving multiple constraints (e.g. software, severity, a
 that the knowledge graph is working correctly, since the results match the intersection of the specified filters.
 
 The natural language interface works well for common query patterns: the LLM is generally able to correctly identify the
-intent and extract the relevant parameters. For example, queries like “high severity vulnerabilities affecting nats-server with CWE-190” are correctly interpreted and translated into structured filters. However, more ambiguous or poorly phrased queries may lead to an “unknown” intent, which is handled safely by the fallback mechanism.
+intent and extract the relevant parameters. For example, queries like “high severity vulnerabilities affecting nats-server 
+with CWE-190” are correctly interpreted and translated into structured filters. 
+However, more ambiguous or poorly phrased queries may lead to an “unknown” intent, which is handled safely by the fallback 
+mechanism.
 
-The generated insights are useful as a short summary of the results. Since the LLM is constrained to only use retrieved data, the answers remain consistent with the actual vulnerabilities and do not introduce incorrect information. The summaries typically highlight the number of results, shared characteristics, and relevant differences between vulnerabilities.
-From a robustness perspective, the system behaves well even when the LLM output is not valid JSON. In these cases, the fallback logic prevents crashes and returns a safe response. This makes the system more reliable when dealing with unpredictable model outputs.
-In terms of performance, the system handles a few thousand vulnerabilities without noticeable issues, as the graph is built in memory at startup. However, this approach would likely not scale to much larger datasets. For larger-scale use, a more efficient graph backend (such as **QLever**) would be preferable.
+The generated insights are useful as a short summary of the results. Since the LLM is constrained to only use retrieved 
+data, the answers remain consistent with the actual vulnerabilities and do not introduce incorrect information. 
+The summaries typically highlight the number of results, shared characteristics, and relevant differences between vulnerabilities.
+From a robustness perspective, the system behaves well even when the LLM output is not valid JSON. In these cases, the 
+fallback logic prevents crashes and returns a safe response. This makes the system more reliable when dealing with 
+unpredictable model outputs.
+In terms of performance, the system handles a few thousand vulnerabilities without noticeable issues, as the graph is 
+built in memory at startup. However, this approach would likely not scale to much larger datasets. For larger-scale use, 
+a more efficient graph backend (such as **QLever**) would be preferable.
