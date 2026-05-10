@@ -1,29 +1,28 @@
-# Ontology for CyberGraph Knowledge Graph
-# This module defines the RDF ontology used to model cybersecurity vulnerabilities,
-# software products, weaknesses, and references. It uses OWL (Web Ontology Language)
-# to specify classes, object properties (relationships between entities), and
-# datatype properties (attributes of entities).
-
 from rdflib import Graph, Namespace, RDF, RDFS, OWL, XSD, Literal
 
-# Define custom namespaces for the ontology
-# CG: General CyberGraph namespace for classes and properties
-# CVE: Namespace for CVE-specific entities (e.g., individual vulnerabilities)
-# PRODUCT: Namespace for software product entities
-# CWE: Namespace for CWE (Common Weakness Enumeration) entities
+# custom namespaces used in the cybergraph ontology
 CG = Namespace("http://example.org/cybergraph/")
 CVE = Namespace("http://example.org/cybergraph/cve/")
 PRODUCT = Namespace("http://example.org/cybergraph/product/")
+VENDOR = Namespace("http://example.org/cybergraph/vendor/")
 CWE = Namespace("http://example.org/cybergraph/cwe/")
+REF = Namespace("http://example.org/cybergraph/reference/")
+SEVERITY = Namespace("http://example.org/cybergraph/severity/")
 
 
 def bind_namespaces(graph: Graph) -> None:
-    # Bind namespace prefixes to the RDF graph for easier serialization and querying
-    # This allows using short prefixes like 'cg:Vulnerability' instead of full URIs
+    """
+    bind namespace prefixes to make the rdf graph easier to read
+    and easier to query with sparql.
+    """
+
     graph.bind("cg", CG)
     graph.bind("cve", CVE)
     graph.bind("product", PRODUCT)
+    graph.bind("vendor", VENDOR)
     graph.bind("cwe", CWE)
+    graph.bind("ref", REF)
+    graph.bind("severity", SEVERITY)
     graph.bind("rdf", RDF)
     graph.bind("rdfs", RDFS)
     graph.bind("owl", OWL)
@@ -31,59 +30,129 @@ def bind_namespaces(graph: Graph) -> None:
 
 
 def add_ontology(graph: Graph) -> None:
-    # Add the ontology definitions to the RDF graph
+    """
+    add the cybergraph ontology to the rdf graph.
+
+    the ontology defines the main classes, object properties,
+    and datatype properties used to represent vulnerabilities,
+    software products, vendors, weaknesses, references, and severity levels.
+    """
+
     bind_namespaces(graph)
 
-    # Define OWL Classes (entity types in the knowledge graph)
-    # These represent the main concepts: vulnerabilities, software products, weaknesses, and references
-    graph.add((CG.Vulnerability, RDF.type, OWL.Class))
-    graph.add((CG.SoftwareProduct, RDF.type, OWL.Class))
-    graph.add((CG.Weakness, RDF.type, OWL.Class))
-    graph.add((CG.Reference, RDF.type, OWL.Class))
+    # main entity types in the knowledge graph
+    classes = {
+        CG.Vulnerability: "Vulnerability",
+        CG.SoftwareProduct: "Software Product",
+        CG.Vendor: "Vendor",
+        CG.Weakness: "Weakness",
+        CG.Reference: "Reference",
+        CG.SeverityLevel: "Severity Level",
+    }
 
-    # Add human-readable labels to the classes for better interpretability
-    graph.add((CG.Vulnerability, RDFS.label, Literal("Vulnerability")))
-    graph.add((CG.SoftwareProduct, RDFS.label, Literal("Software Product")))
-    graph.add((CG.Weakness, RDFS.label, Literal("Weakness")))
-    graph.add((CG.Reference, RDFS.label, Literal("Reference")))
+    for cls, label in classes.items():
+        graph.add((cls, RDF.type, OWL.Class))
+        graph.add((cls, RDFS.label, Literal(label)))
 
-    # Define Object Properties (relationships between entities)
-    # These link instances of classes together, e.g., a vulnerability affects a software product
-    object_properties = [
-        CG.affects,        # Links a Vulnerability to a SoftwareProduct it impacts
-        CG.hasWeakness,    # Links a Vulnerability to a Weakness (CWE) it exhibits
-        CG.hasReference,   # Links a Vulnerability to an external Reference (e.g., advisory)
-    ]
+    # object properties connect two graph entities together
+    object_properties = {
+        CG.affects: (
+            "affects",
+            CG.Vulnerability,
+            CG.SoftwareProduct,
+        ),
+        CG.hasVendor: (
+            "has vendor",
+            CG.SoftwareProduct,
+            CG.Vendor,
+        ),
+        CG.hasWeakness: (
+            "has weakness",
+            CG.Vulnerability,
+            CG.Weakness,
+        ),
+        CG.hasReference: (
+            "has reference",
+            CG.Vulnerability,
+            CG.Reference,
+        ),
+        CG.hasSeverityLevel: (
+            "has severity level",
+            CG.Vulnerability,
+            CG.SeverityLevel,
+        ),
+    }
 
-    for prop in object_properties:
+    for prop, (label, domain, range_) in object_properties.items():
         graph.add((prop, RDF.type, OWL.ObjectProperty))
+        graph.add((prop, RDFS.label, Literal(label)))
 
-    # Define Datatype Properties (attributes with literal values)
-    # These attach data values to entities, e.g., severity score of a vulnerability
-    data_properties = [
-        CG.hasSeverity,      # Severity level (e.g., CRITICAL, HIGH) of a Vulnerability
-        CG.hasScore,         # Numerical CVSS score of a Vulnerability
-        CG.description,      # Text description of a Vulnerability
-        CG.publishedAt,      # Publication date of a Vulnerability
-        CG.lastModifiedAt,   # Last modification date of a Vulnerability
-    ]
+        # domain defines the expected subject class
+        graph.add((prop, RDFS.domain, domain))
 
-    for prop in data_properties:
+        # range defines the expected object class
+        graph.add((prop, RDFS.range, range_))
+
+    # datatype properties attach literal values to graph entities
+    data_properties = {
+        CG.cveId: (
+            "CVE identifier",
+            CG.Vulnerability,
+            XSD.string,
+        ),
+        CG.cweId: (
+            "CWE identifier",
+            CG.Weakness,
+            XSD.string,
+        ),
+        CG.productName: (
+            "product name",
+            CG.SoftwareProduct,
+            XSD.string,
+        ),
+        CG.vendorName: (
+            "vendor name",
+            CG.Vendor,
+            XSD.string,
+        ),
+        CG.referenceUrl: (
+            "reference URL",
+            CG.Reference,
+            XSD.anyURI,
+        ),
+        CG.hasScore: (
+            "CVSS score",
+            CG.Vulnerability,
+            XSD.decimal,
+        ),
+        CG.description: (
+            "description",
+            CG.Vulnerability,
+            XSD.string,
+        ),
+        CG.weaknessDescription: (
+            "weakness description",
+            CG.Weakness,
+            XSD.string,
+        ),
+        CG.publishedAt: (
+            "publication date",
+            CG.Vulnerability,
+            XSD.dateTime,
+        ),
+        CG.lastModifiedAt: (
+            "last modification date",
+            CG.Vulnerability,
+            XSD.dateTime,
+        ),
+    }
+
+    for prop, (label, domain, range_) in data_properties.items():
         graph.add((prop, RDF.type, OWL.DatatypeProperty))
+        graph.add((prop, RDFS.label, Literal(label)))
 
-    # Define Domains and Ranges for properties to constrain their usage
-    # Domain: The class the property applies to (subject)
-    # Range: The class or datatype the property points to (object)
-    graph.add((CG.affects, RDFS.domain, CG.Vulnerability))          # affects relates Vulnerabilities
-    graph.add((CG.affects, RDFS.range, CG.SoftwareProduct))          # to SoftwareProducts
+        # domain defines which entity type can use this property
+        graph.add((prop, RDFS.domain, domain))
 
-    graph.add((CG.hasWeakness, RDFS.domain, CG.Vulnerability))       # hasWeakness relates Vulnerabilities
-    graph.add((CG.hasWeakness, RDFS.range, CG.Weakness))             # to Weaknesses
-
-    graph.add((CG.hasReference, RDFS.domain, CG.Vulnerability))      # hasReference relates Vulnerabilities
-    graph.add((CG.hasReference, RDFS.range, CG.Reference))           # to References
-
-    # Datatype properties apply to Vulnerabilities and have literal (string/date) values
-    graph.add((CG.hasSeverity, RDFS.domain, CG.Vulnerability))
-    graph.add((CG.hasScore, RDFS.domain, CG.Vulnerability))
-    graph.add((CG.description, RDFS.domain, CG.Vulnerability))
+        # range defines the expected literal datatype
+        graph.add((prop, RDFS.range, range_))
